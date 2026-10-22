@@ -8,12 +8,20 @@
 #include "historydialog.h"
 
 #include <algorithm>
+#include <QHash>
+#include <QDate>
 #include <QDateTimeEdit>
+#include <QFontMetrics>
 #include <QHeaderView>
 #include <QItemDelegate>
 #include <QLabel>
+#include <QLocale>
+#include <QPainter>
+#include <QPaintEvent>
 #include <QPushButton>
 #include <QSet>
+#include <QTimer>
+#include <QVBoxLayout>
 
 #include <KMessageBox>
 #include <KStandardGuiItem>
@@ -76,13 +84,219 @@ public:
     }
 };
 
+class ActivityTimelineWidget : public QWidget
+{
+public:
+    struct Entry {
+        QString task;
+        QString description;
+        QStringList comments;
+        QDateTime start;
+        QDateTime end;
+        bool running;
+    };
+
+    explicit ActivityTimelineWidget(QWidget *parent = nullptr)
+        : QWidget(parent)
+    {
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        m_refreshTimer.setInterval(60000);
+        connect(&m_refreshTimer, &QTimer::timeout, this, qOverload<>(&ActivityTimelineWidget::update));
+    }
+
+    QSize sizeHint() const override
+    {
+        return QSize(620, contentHeight());
+    }
+
+    void setEntries(const QList<Entry> &entries)
+    {
+        m_entries = entries;
+        std::sort(m_entries.begin(), m_entries.end(), [](const Entry &left, const Entry &right) {
+            return left.start > right.start;
+        });
+        const bool hasRunningEntry = std::any_of(entries.cbegin(), entries.cend(), [](const Entry &entry) {
+            return entry.running;
+        });
+        if (hasRunningEntry) {
+            m_refreshTimer.start();
+        } else {
+            m_refreshTimer.stop();
+        }
+        setMinimumHeight(contentHeight());
+        updateGeometry();
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *event) override
+    {
+        Q_UNUSED(event)
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.fillRect(rect(), palette().base());
+
+        const int axisX = 24;
+        const int contentX = 50;
+        const int right = width() - 16;
+        if (right <= contentX) {
+            return;
+        }
+        if (m_entries.isEmpty()) {
+            painter.setPen(palette().text().color());
+            painter.drawText(rect(), Qt::AlignCenter, tr("No activity recorded"));
+            return;
+        }
+
+        QHash<QDate, double> dailyTotals;
+        for (const Entry &entry : std::as_const(m_entries)) {
+            dailyTotals[entry.start.date()] += entry.start.secsTo(effectiveEnd(entry)) / 60.0;
+        }
+
+        const QPen spinePen(palette().midlight().color(), 2);
+        painter.setPen(spinePen);
+        painter.drawLine(axisX, 18, axisX, height() - 18);
+
+        int y = 14;
+        QDate previousDate;
+        QDateTime newerBoundary;
+        for (const Entry &entry : std::as_const(m_entries)) {
+            const QDateTime end = effectiveEnd(entry);
+            if (newerBoundary.isValid() && end < newerBoundary) {
+                const qint64 gapSeconds = end.secsTo(newerBoundary);
+                if (gapSeconds >= 12 * 60 * 60) {
+                    const QString gap = i18n("%1 without tracked activity", formatTime(gapSeconds / 60.0));
+                    painter.setPen(palette().text().color());
+                    painter.drawText(QRect(contentX, y, right - contentX, 24), Qt::AlignLeft | Qt::AlignVCenter, gap);
+                    y += 28;
+                }
+            }
+
+            if (entry.start.date() != previousDate) {
+                QFont dateFont = painter.font();
+                dateFont.setWeight(QFont::DemiBold);
+                painter.setFont(dateFont);
+                painter.setPen(palette().text().color());
+                const int totalWidth = 140;
+                const QRect dateRect(contentX, y, right - contentX - totalWidth, 24);
+                const QRect totalRect(right - totalWidth, y, totalWidth, 24);
+                painter.drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, QLocale().toString(entry.start.date(), QLocale::LongFormat));
+                painter.drawText(totalRect, Qt::AlignRight | Qt::AlignVCenter, i18n("Total %1", formatTime(dailyTotals.value(entry.start.date()))));
+                painter.setFont(font());
+                y += 28;
+                previousDate = entry.start.date();
+            }
+
+            const int cardHeight = entryCardHeight(entry);
+            const QRect card(contentX, y, right - contentX, cardHeight);
+            painter.setPen(palette().midlight().color());
+            painter.setBrush(palette().alternateBase());
+            painter.drawRoundedRect(card, 4, 4);
+
+            const int markerY = y + cardHeight / 2;
+            painter.setPen(palette().base().color());
+            painter.setBrush(palette().highlight());
+            painter.drawEllipse(QPoint(axisX, markerY), 5, 5);
+
+            const int textX = card.left() + 12;
+            const int textWidth = card.width() - 24;
+            QFont taskFont = painter.font();
+            taskFont.setWeight(QFont::DemiBold);
+            painter.setFont(taskFont);
+            painter.setPen(palette().text().color());
+            const QFontMetrics taskMetrics(taskFont);
+            painter.drawText(QRect(textX, y + 5, textWidth, 22), Qt::AlignLeft | Qt::AlignVCenter,
+                             taskMetrics.elidedText(entry.task, Qt::ElideRight, textWidth));
+
+            painter.setFont(font());
+            painter.setPen(palette().text().color());
+            const QString startTime = entry.start.toString(QStringLiteral("HH:mm"));
+            const QString endTime = entry.running ? tr("Now")
+                                                  : (entry.start.date() == end.date() ? end.toString(QStringLiteral("HH:mm"))
+                                                                                     : end.toString(QStringLiteral("MMM d HH:mm")));
+            const QString duration = formatTime(entry.start.secsTo(end) / 60.0);
+            const QString details = QStringLiteral("%1 - %2  (%3)").arg(startTime, endTime, duration);
+            painter.drawText(QRect(textX, y + 27, textWidth, 20), Qt::AlignLeft | Qt::AlignVCenter, details);
+
+            int extraTextY = y + 49;
+            const QFontMetrics extraTextMetrics(painter.font());
+            if (!entry.description.isEmpty()) {
+                const QRect descriptionRect(textX, extraTextY, textWidth, 16);
+                painter.drawText(descriptionRect, Qt::AlignLeft | Qt::AlignVCenter,
+                                 extraTextMetrics.elidedText(entry.description, Qt::ElideRight, textWidth));
+                extraTextY += 16;
+            }
+            for (const QString &comment : entry.comments) {
+                const QRect commentRect(textX, extraTextY, textWidth, 16);
+                painter.drawText(commentRect, Qt::AlignLeft | Qt::AlignVCenter,
+                                 extraTextMetrics.elidedText(comment, Qt::ElideRight, textWidth));
+                extraTextY += 16;
+            }
+            y += cardHeight + 8;
+
+            if (!newerBoundary.isValid() || entry.start < newerBoundary) {
+                newerBoundary = entry.start;
+            }
+        }
+    }
+
+private:
+    int entryCardHeight(const Entry &entry) const
+    {
+        return 62 + (entry.description.isEmpty() ? 0 : 16) + entry.comments.size() * 16;
+    }
+
+    QDateTime effectiveEnd(const Entry &entry) const
+    {
+        if (entry.running) {
+            return QDateTime::currentDateTime();
+        }
+        return entry.end.isValid() ? entry.end : entry.start;
+    }
+
+    int contentHeight() const
+    {
+        if (m_entries.isEmpty()) {
+            return 220;
+        }
+
+        int total = 28;
+        QDate previousDate;
+        QDateTime newerBoundary;
+        for (const Entry &entry : std::as_const(m_entries)) {
+            const QDateTime end = effectiveEnd(entry);
+            if (newerBoundary.isValid() && end < newerBoundary && end.secsTo(newerBoundary) >= 12 * 60 * 60) {
+                total += 28;
+            }
+            if (entry.start.date() != previousDate) {
+                total += 28;
+                previousDate = entry.start.date();
+            }
+            total += entryCardHeight(entry) + 8;
+            if (!newerBoundary.isValid() || entry.start < newerBoundary) {
+                newerBoundary = entry.start;
+            }
+        }
+        return total;
+    }
+
+    QList<Entry> m_entries;
+    QTimer m_refreshTimer;
+};
+
 HistoryDialog::HistoryDialog(QWidget *parent, ProjectModel *projectModel, Task *scopeTask)
     : QDialog(parent)
     , m_projectModel(projectModel)
     , m_scopeTask(scopeTask)
+    , m_timelineWidget(nullptr)
     , m_ui()
 {
     m_ui.setupUi(this);
+    auto *timelineLayout = new QVBoxLayout(m_ui.timelineContainer);
+    m_timelineWidget = new ActivityTimelineWidget(m_ui.timelineContainer);
+    timelineLayout->setContentsMargins(0, 0, 0, 0);
+    timelineLayout->addWidget(m_timelineWidget);
+    m_ui.timelineScrollArea->setWidget(m_ui.timelineContainer);
     setWindowTitle(m_scopeTask ? i18nc("@title:window", "Task Activity: %1", m_scopeTask->name()) : i18n("Edit History"));
     setMinimumSize(900, 540);
     m_ui.activitySummary->setVisible(m_scopeTask);
@@ -110,6 +324,10 @@ HistoryDialog::HistoryDialog(QWidget *parent, ProjectModel *projectModel, Task *
         }
         QTableWidget#historytablewidget::item {
             padding: 6px 8px;
+        }
+        QLabel#activityEmptyState {
+            color: palette(mid);
+            font-size: 11pt;
         }
         QHeaderView::section {
             padding: 9px 10px;
@@ -145,6 +363,7 @@ HistoryDialog::HistoryDialog(QWidget *parent, ProjectModel *projectModel, Task *
     m_ui.historytablewidget->setSortingEnabled(false);
     connect(m_ui.historytablewidget, &QTableWidget::cellChanged, this, &HistoryDialog::onCellChanged);
     listAllEvents();
+    updateTimelineView();
     auto *deleteButton = m_ui.buttonbox->addButton(QString(), QDialogButtonBox::ActionRole);
     KStandardGuiItem::assign(deleteButton, KStandardGuiItem::Delete);
     connect(deleteButton, &QPushButton::clicked, this, &HistoryDialog::onDeleteClicked);
@@ -153,6 +372,7 @@ HistoryDialog::HistoryDialog(QWidget *parent, ProjectModel *projectModel, Task *
 QString HistoryDialog::listAllEvents()
 {
     QString err;
+    m_visibleEvents.clear();
     QSet<QString> scopedTaskUids;
     if (m_scopeTask) {
         for (Task *candidate : m_projectModel->tasksModel()->getAllTasks()) {
@@ -165,7 +385,6 @@ QString HistoryDialog::listAllEvents()
         }
     }
 
-    QList<Event *> visibleEvents;
     for (Event *event : m_projectModel->eventsModel()->events()) {
         Task *eventTask = m_projectModel->tasksModel()->taskByUID(event->relatedTo());
         if (!eventTask) {
@@ -177,13 +396,13 @@ QString HistoryDialog::listAllEvents()
         if (m_scopeTask && !scopedTaskUids.contains(eventTask->uid())) {
             continue;
         }
-        visibleEvents.append(event);
+        m_visibleEvents.append(event);
     }
-    std::sort(visibleEvents.begin(), visibleEvents.end(), [](const Event *left, const Event *right) {
+    std::sort(m_visibleEvents.begin(), m_visibleEvents.end(), [](const Event *left, const Event *right) {
         return left->dtStart() > right->dtStart();
     });
 
-    for (const auto *event : visibleEvents) {
+    for (const auto *event : std::as_const(m_visibleEvents)) {
         int row = m_ui.historytablewidget->rowCount();
         m_ui.historytablewidget->insertRow(row);
         Task *eventTask = m_projectModel->tasksModel()->taskByUID(event->relatedTo());
@@ -216,7 +435,23 @@ QString HistoryDialog::listAllEvents()
         m_ui.historytablewidget->setItem(row, 5, new QTableWidgetItem(event->uid()));
     }
 
+    const bool hasActivity = m_ui.historytablewidget->rowCount() > 0;
+    m_ui.historytablewidget->setVisible(hasActivity);
+    m_ui.activityEmptyState->setVisible(!hasActivity);
     return err;
+}
+
+void HistoryDialog::updateTimelineView()
+{
+    QList<ActivityTimelineWidget::Entry> entries;
+    for (const Event *event : std::as_const(m_visibleEvents)) {
+        Task *eventTask = m_projectModel->tasksModel()->taskByUID(event->relatedTo());
+        if (!eventTask) {
+            continue;
+        }
+        entries.append({eventTask->name(), eventTask->description(), event->comments(), event->dtStart(), event->dtEnd(), !event->hasEndDate()});
+    }
+    m_timelineWidget->setEntries(entries);
 }
 
 void HistoryDialog::updateScopeSummary()
@@ -273,6 +508,7 @@ void HistoryDialog::onCellChanged(int row, int col)
 
         Q_EMIT m_projectModel->eventsModel()->timesChanged();
         updateScopeSummary();
+        updateTimelineView();
         qCDebug(KTT_LOG) << "Program SetDtStart to" << m_ui.historytablewidget->item(row, col)->text();
         break;
     }
@@ -298,6 +534,7 @@ void HistoryDialog::onCellChanged(int row, int col)
 
         Q_EMIT m_projectModel->eventsModel()->timesChanged();
         updateScopeSummary();
+        updateTimelineView();
         qCDebug(KTT_LOG) << "Program SetDtEnd to" << m_ui.historytablewidget->item(row, col)->text();
         break;
     }
@@ -315,6 +552,7 @@ void HistoryDialog::onCellChanged(int row, int col)
         if (event) {
             event->addComment(comment);
             m_ui.historytablewidget->item(row, col)->setToolTip(event->comments().join(QLatin1Char('\n')));
+            updateTimelineView();
         }
         break;
     }
@@ -329,6 +567,7 @@ void HistoryDialog::refresh()
         m_ui.historytablewidget->removeRow(0);
     }
     listAllEvents();
+    updateTimelineView();
 }
 
 void HistoryDialog::onDeleteClicked()

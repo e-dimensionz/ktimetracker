@@ -53,6 +53,10 @@ public:
          * Export the history of all events as csv
          */
         CSVEventLogExport = 3,
+        /**
+         * Worked-time totals rendered as a readable project tree.
+         */
+        TreeTotalsExport = 4,
     };
 
     /**

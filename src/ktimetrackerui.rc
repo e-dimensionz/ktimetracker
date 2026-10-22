@@ -3,7 +3,7 @@
 SPDX-FileCopyrightText: 2019, 2022 Alexander Potashev <aspotashev@gmail.com>
 SPDX-License-Identifier: GPL-2.0-or-later
 -->
-<gui name="ktimetracker" version="393">
+<gui name="ktimetracker" version="394">
     <MenuBar>
         <Menu name="file">
             <Action name="file_open" />
@@ -37,9 +37,13 @@ SPDX-License-Identifier: GPL-2.0-or-later
             <Action name="mark_as_complete" />
             <Action name="mark_as_incomplete" />
         </Menu>
+        <Menu name="view">
+            <text>&amp;View</text>
+            <Action name="searchbar" />
+            <Action name="show_completed" />
+        </Menu>
         <Menu name="settings" >
         <text>&amp;Settings</text>
-        <Action name="searchbar" />
         </Menu>
     </MenuBar>
     <Menu name="task_popup">

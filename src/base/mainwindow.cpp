@@ -7,6 +7,8 @@
 
 #include "mainwindow.h"
 
+#include <QDBusConnection>
+#include <QDBusInterface>
 #include <QGuiApplication>
 #include <QMenu>
 #include <QStatusBar>
@@ -21,6 +23,18 @@
 #include "model/task.h"
 #include "timetrackerwidget.h"
 #include "tray.h"
+
+namespace
+{
+bool statusNotifierHostAvailable()
+{
+    const QDBusInterface watcher(QStringLiteral("org.kde.StatusNotifierWatcher"),
+                                 QStringLiteral("/StatusNotifierWatcher"),
+                                 QStringLiteral("org.kde.StatusNotifierWatcher"),
+                                 QDBusConnection::sessionBus());
+    return watcher.property("IsStatusNotifierHostRegistered").toBool();
+}
+}
 
 MainWindow::MainWindow(const QUrl &url)
     : KXmlGuiWindow(nullptr)
@@ -54,15 +68,43 @@ MainWindow::MainWindow(const QUrl &url)
     // Setup context menu request handling
     connect(m_mainWidget, &TimeTrackerWidget::contextMenuRequested, this, &MainWindow::taskViewCustomContextMenuRequested);
 
-    if (KTimeTrackerSettings::trayIcon()) {
-        m_tray = new TrayIcon(this);
-        connect(m_mainWidget, &TimeTrackerWidget::timersActive, m_tray, &TrayIcon::startClock);
-        connect(m_mainWidget, &TimeTrackerWidget::timersInactive, m_tray, &TrayIcon::stopClock);
-        connect(m_mainWidget, &TimeTrackerWidget::tasksChanged, m_tray, &TrayIcon::updateToolTip);
-    }
+    connect(m_mainWidget, &TimeTrackerWidget::trayIconSettingChanged, this, &MainWindow::setTrayIconEnabled);
+    connect(m_mainWidget, &TimeTrackerWidget::tasksChanged, this, &MainWindow::updateTrayIconTasks);
+    setTrayIconEnabled(KTimeTrackerSettings::trayIcon());
 
     // Load the specified .ics file in the tasks widget
     m_mainWidget->openFile(url);
+}
+
+void MainWindow::setTrayIconEnabled(bool enabled)
+{
+    if (enabled == (m_tray != nullptr)) {
+        return;
+    }
+
+    delete m_tray;
+    m_tray = nullptr;
+    if (!enabled) {
+        return;
+    }
+
+    m_tray = new TrayIcon(this);
+    connect(m_mainWidget, &TimeTrackerWidget::timersActive, m_tray, &TrayIcon::startClock);
+    connect(m_mainWidget, &TimeTrackerWidget::timersInactive, m_tray, &TrayIcon::stopClock);
+}
+
+void MainWindow::updateTrayIconTasks(const QList<Task *> &activeTasks)
+{
+    if (!m_tray) {
+        return;
+    }
+
+    m_tray->updateToolTip(activeTasks);
+    if (activeTasks.isEmpty()) {
+        m_tray->stopClock();
+    } else {
+        m_tray->startClock();
+    }
 }
 
 // bool KTimeTrackerPart::openFile()
@@ -91,7 +133,7 @@ MainWindow::~MainWindow()
 
 bool MainWindow::queryClose()
 {
-    if (!m_quitRequested && qApp && !qApp->isSavingSession()) {
+    if (!m_quitRequested && qApp && !qApp->isSavingSession() && m_tray && KTimeTrackerSettings::trayIcon() && statusNotifierHostAvailable()) {
         hide();
         return false;
     }

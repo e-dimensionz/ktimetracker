@@ -14,6 +14,9 @@ add_library(ktt-model STATIC)
 add_library(ktt-settings STATIC)
 add_library(ktt-widgets STATIC)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBZIP REQUIRED IMPORTED_TARGET libzip)
+
 target_link_libraries(ktt-deps
     INTERFACE
     Qt6::Widgets

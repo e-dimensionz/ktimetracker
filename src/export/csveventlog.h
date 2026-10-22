@@ -11,8 +11,9 @@
 #include "model/event.h"
 
 class ProjectModel;
+class Task;
 
-QString exportCSVEventLogToString(ProjectModel *projectModel, const ReportCriteria &rc);
+QString exportCSVEventLogToString(ProjectModel *projectModel, Task *currentTask, const ReportCriteria &rc);
 QString getFullEventName(const Event *event, ProjectModel *projectModel);
 
 #endif // KTIMETRACKER_CSVEVENTLOG_H

@@ -7,11 +7,15 @@
 
 #include "timetrackerwidget.h"
 
+#include <QApplication>
+#include <QColor>
 #include <QFileDialog>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPalette>
 #include <QPointer>
+#include <QStyle>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -39,6 +43,53 @@
 #include "widgets/searchline.h"
 #include "widgets/taskswidget.h"
 
+namespace
+{
+QPalette colorSchemePalette()
+{
+    const int colorScheme = static_cast<int>(KTimeTrackerSettings::colorScheme());
+    if (colorScheme == KTimeTrackerSettings::EnumColorScheme::system) {
+        return QApplication::style()->standardPalette();
+    }
+
+    QPalette palette = QApplication::style()->standardPalette();
+    const bool dark = colorScheme == KTimeTrackerSettings::EnumColorScheme::dark;
+    const auto setColor = [&palette](QPalette::ColorRole role, const QColor &color) {
+        palette.setColor(QPalette::Active, role, color);
+        palette.setColor(QPalette::Inactive, role, color);
+        palette.setColor(QPalette::Disabled, role, color);
+    };
+
+    setColor(QPalette::Window, dark ? QColor("#232629") : QColor("#f3f6f5"));
+    setColor(QPalette::WindowText, dark ? QColor("#eff0f1") : QColor("#1d302d"));
+    setColor(QPalette::Base, dark ? QColor("#1b1e20") : QColor("#ffffff"));
+    setColor(QPalette::AlternateBase, dark ? QColor("#292d31") : QColor("#f7f9f8"));
+    setColor(QPalette::ToolTipBase, dark ? QColor("#31363b") : QColor("#ffffff"));
+    setColor(QPalette::ToolTipText, dark ? QColor("#eff0f1") : QColor("#1d302d"));
+    setColor(QPalette::Text, dark ? QColor("#eff0f1") : QColor("#1d302d"));
+    setColor(QPalette::Button, dark ? QColor("#31363b") : QColor("#ffffff"));
+    setColor(QPalette::ButtonText, dark ? QColor("#eff0f1") : QColor("#263a36"));
+    setColor(QPalette::BrightText, dark ? QColor("#ff6b6b") : QColor("#ff0000"));
+    setColor(QPalette::Link, dark ? QColor("#3daee9") : QColor("#087f73"));
+    setColor(QPalette::Highlight, dark ? QColor("#3daee9") : QColor("#087f73"));
+    setColor(QPalette::HighlightedText, dark ? QColor("#1b1e20") : QColor("#ffffff"));
+    setColor(QPalette::Light, dark ? QColor("#4a5157") : QColor("#ffffff"));
+    setColor(QPalette::Midlight, dark ? QColor("#3a4045") : QColor("#dce5e2"));
+    setColor(QPalette::Mid, dark ? QColor("#454c52") : QColor("#9aa8a4"));
+    setColor(QPalette::Dark, dark ? QColor("#1b1e20") : QColor("#52645f"));
+    setColor(QPalette::Shadow, dark ? QColor("#000000") : QColor("#263a36"));
+    palette.setColor(QPalette::Disabled, QPalette::WindowText, dark ? QColor("#7d858b") : QColor("#a6b2af"));
+    palette.setColor(QPalette::Disabled, QPalette::Text, dark ? QColor("#7d858b") : QColor("#a6b2af"));
+    palette.setColor(QPalette::Disabled, QPalette::ButtonText, dark ? QColor("#7d858b") : QColor("#a6b2af"));
+    return palette;
+}
+
+void applyColorScheme()
+{
+    QApplication::setPalette(colorSchemePalette());
+}
+}
+
 TimeTrackerWidget::TimeTrackerWidget(QWidget *parent)
     : QWidget(parent)
     , m_searchLine(nullptr)
@@ -48,6 +99,7 @@ TimeTrackerWidget::TimeTrackerWidget(QWidget *parent)
     , m_activeTaskLabel(nullptr)
     , m_activeTimeLabel(nullptr)
 {
+    applyColorScheme();
     registerDBus();
 
     QLayout *layout = new QVBoxLayout;
@@ -57,116 +109,117 @@ TimeTrackerWidget::TimeTrackerWidget(QWidget *parent)
 
     setStyleSheet(QStringLiteral(R"(
         TimeTrackerWidget {
-            background: #f3f6f5;
-            color: #1d302d;
+            background: palette(window);
+            color: palette(window-text);
             font-family: "Noto Sans", "Ubuntu", sans-serif;
             font-size: 10pt;
         }
         QLabel#tasksHeading {
-            color: #1d302d;
+            color: palette(window-text);
             font-size: 17pt;
             font-weight: 650;
         }
         QFrame#timerPanel {
-            background: #ffffff;
-            border: 1px solid #dce6e3;
-            border-left: 4px solid #087f73;
+            background: palette(base);
+            border: 1px solid palette(midlight);
+            border-left: 4px solid palette(highlight);
             border-radius: 8px;
         }
         QLabel#timerStateLabel {
-            color: #687975;
-            background: #edf2f1;
+            color: palette(mid);
+            background: palette(alternate-base);
             border-radius: 4px;
             padding: 3px 7px;
             font-size: 8pt;
             font-weight: 700;
         }
         QLabel#timerStateLabel[active="true"] {
-            color: #086b60;
-            background: #e0f2ed;
+            color: palette(highlight);
+            background: palette(alternate-base);
         }
         QLabel#activeTaskLabel {
-            color: #203632;
+            color: palette(text);
             font-size: 12pt;
             font-weight: 600;
         }
         QLabel#sessionCaption {
-            color: #6c7b77;
+            color: palette(mid);
             font-size: 8pt;
         }
         QLabel#activeTimeLabel {
-            color: #173d37;
+            color: palette(text);
             font-size: 22pt;
             font-weight: 650;
         }
         QToolButton {
             min-height: 36px;
             padding: 0 12px;
-            border: 1px solid #d7e2df;
+            border: 1px solid palette(midlight);
             border-radius: 6px;
-            background: #ffffff;
-            color: #263a36;
+            background: palette(base);
+            color: palette(button-text);
         }
         QToolButton:hover:enabled {
-            background: #f1f7f5;
-            border-color: #9bbab2;
+            background: palette(alternate-base);
+            border-color: palette(highlight);
         }
         QToolButton:disabled {
-            color: #a6b2af;
-            background: #f1f4f3;
+            color: palette(mid);
+            background: palette(alternate-base);
         }
         QToolButton#timerStartButton {
-            color: #ffffff;
-            background: #087f73;
-            border-color: #087f73;
+            color: palette(highlighted-text);
+            background: palette(highlight);
+            border-color: palette(highlight);
             font-weight: 600;
         }
         QToolButton#timerStartButton:hover:enabled {
-            background: #066d63;
-            border-color: #066d63;
+            background: palette(highlight);
+            border-color: palette(highlight);
         }
         QToolButton#timerStartButton:disabled {
-            color: #e4eeeb;
-            background: #91aaa4;
-            border-color: #91aaa4;
+            color: palette(mid);
+            background: palette(button);
+            border-color: palette(midlight);
         }
         QLineEdit#taskSearchField {
             min-height: 36px;
             padding: 0 11px;
-            border: 1px solid #d8e2df;
+            border: 1px solid palette(midlight);
             border-radius: 6px;
-            background: #ffffff;
-            selection-background-color: #087f73;
+            background: palette(base);
+            color: palette(text);
+            selection-background-color: palette(highlight);
         }
         QLineEdit#taskSearchField:focus {
-            border: 1px solid #087f73;
+            border: 1px solid palette(highlight);
         }
         QTreeView#tasksTable {
-            border: 1px solid #dce5e2;
+            border: 1px solid palette(midlight);
             border-radius: 6px;
-            background: #ffffff;
-            alternate-background-color: #f7f9f8;
+            background: palette(base);
+            alternate-background-color: palette(alternate-base);
             outline: 0;
         }
         QTreeView#tasksTable::item {
             min-height: 27px;
             padding: 5px 7px;
-            border-bottom: 1px solid #edf1f0;
+            border-bottom: 1px solid palette(midlight);
         }
         QTreeView#tasksTable::item:hover {
-            background: #eff7f4;
+            background: palette(alternate-base);
         }
         QTreeView#tasksTable::item:selected {
-            color: #173e38;
-            background: #dcefe9;
+            color: palette(highlighted-text);
+            background: palette(highlight);
         }
         QHeaderView::section {
             min-height: 32px;
             padding: 0 8px;
             border: 0;
-            border-bottom: 1px solid #dce5e2;
-            background: #edf2f0;
-            color: #52645f;
+            border-bottom: 1px solid palette(midlight);
+            background: palette(alternate-base);
+            color: palette(text);
             font-size: 9pt;
             font-weight: 650;
         }
@@ -430,9 +483,9 @@ void TimeTrackerWidget::setupActions(KActionCollection *actionCollection)
 
     {
         QAction *action = actionCollection->addAction(QStringLiteral("new_task"));
-        action->setText(i18nc("@action:inmenu", "&New Task..."));
-        action->setToolTip(i18nc("@info:tooltip", "Creates new top level task"));
-        action->setWhatsThis(i18nc("@info:whatsthis", "This will create a new top level task."));
+        action->setText(i18nc("@action:inmenu", "&New Project..."));
+        action->setToolTip(i18nc("@info:tooltip", "Creates a new project"));
+        action->setWhatsThis(i18nc("@info:whatsthis", "This will create a new top-level project."));
         action->setIcon(QIcon::fromTheme(QStringLiteral("task-new")));
         actionCollection->setDefaultShortcut(action, QKeySequence(Qt::CTRL | Qt::Key_T));
         connect(action, &QAction::triggered, this, &TimeTrackerWidget::newTask);
@@ -440,9 +493,9 @@ void TimeTrackerWidget::setupActions(KActionCollection *actionCollection)
 
     {
         QAction *action = actionCollection->addAction(QStringLiteral("new_sub_task"));
-        action->setText(i18nc("@action:inmenu", "New &Subtask..."));
-        action->setToolTip(i18nc("@info:tooltip", "Creates a new subtask to the current selected task"));
-        action->setWhatsThis(i18nc("@info:whatsthis", "This will create a new subtask to the current selected task."));
+        action->setText(i18nc("@action:inmenu", "New Project &Task..."));
+        action->setToolTip(i18nc("@info:tooltip", "Creates a new project task under the selected item"));
+        action->setWhatsThis(i18nc("@info:whatsthis", "This will create a new project task under the selected item."));
         action->setIcon(QIcon::fromTheme(QStringLiteral("view-task-child")));
         actionCollection->setDefaultShortcut(action, QKeySequence(Qt::CTRL | Qt::Key_B));
         connect(action, &QAction::triggered, this, &TimeTrackerWidget::newSubTask);
@@ -523,6 +576,23 @@ void TimeTrackerWidget::setupActions(KActionCollection *actionCollection)
         connect(action, &QAction::triggered, this, &TimeTrackerWidget::slotSearchBar);
     }
 
+    {
+        QAction *action = actionCollection->addAction(QStringLiteral("show_completed"));
+        action->setCheckable(true);
+        action->setChecked(true);
+        action->setText(i18nc("@action:inmenu", "Show Completed"));
+        connect(action, &QAction::toggled, this, [this](bool showCompleted) {
+            if (TaskView *taskView = currentTaskView()) {
+                taskView->setShowCompleted(showCompleted);
+            }
+        });
+        connect(this, &TimeTrackerWidget::currentTaskViewChanged, this, [this, action] {
+            if (TaskView *taskView = currentTaskView()) {
+                taskView->setShowCompleted(action->isChecked());
+            }
+        });
+    }
+
     m_actionCollection = actionCollection;
 
     connect(this, &TimeTrackerWidget::currentTaskChanged, this, &TimeTrackerWidget::slotUpdateButtons);
@@ -594,7 +664,7 @@ void TimeTrackerWidget::slotCurrentChanged()
 {
     qDebug() << "entering KTimeTrackerWidget::slotCurrentChanged";
 
-    if (m_taskView) {
+    if (m_taskView && m_taskView->storage()->isLoaded()) {
         connect(m_taskView, &TaskView::updateButtons, this, &TimeTrackerWidget::updateButtons, Qt::UniqueConnection);
         connect(m_taskView, &TaskView::setStatusBarText, this, &TimeTrackerWidget::statusBarTextChangeRequested, Qt::UniqueConnection);
         connect(m_taskView, &TaskView::timersActive, this, &TimeTrackerWidget::timersActive, Qt::UniqueConnection);
@@ -604,6 +674,8 @@ void TimeTrackerWidget::slotCurrentChanged()
 
         Q_EMIT currentFileChanged(m_taskView->storage()->fileUrl());
         updateTimerSummary(m_taskView->storage()->tasksModel()->getActiveTasks());
+    } else {
+        updateTimerSummary(QList<Task *>());
     }
 }
 
@@ -650,6 +722,7 @@ void TimeTrackerWidget::slotUpdateButtons()
     action(QStringLiteral("delete_task"))->setEnabled(item);
     action(QStringLiteral("edit_task_time"))->setEnabled(item);
     action(QStringLiteral("edit_task"))->setEnabled(item);
+    action(QStringLiteral("edit_task"))->setText(item && !item->parentTask() ? i18nc("@action:inmenu", "Edit Project...") : i18nc("@action:inmenu", "Edit Project Task..."));
     action(QStringLiteral("task_activity"))->setEnabled(item);
     action(QStringLiteral("mark_as_complete"))->setEnabled(item && !item->isComplete());
     action(QStringLiteral("mark_as_incomplete"))->setEnabled(item && item->isComplete());
@@ -675,15 +748,12 @@ void TimeTrackerWidget::showSettingsDialog()
 
     auto *dialog = new KConfigDialog(this, QStringLiteral("settings"), KTimeTrackerSettings::self());
     dialog->setFaceType(KPageDialog::List);
-    KTimeTrackerBehaviorConfig *behaviorConfig = new KTimeTrackerBehaviorConfig(dialog);
-    QWidget *behaviorConfigWidget = behaviorConfig->widget();
-    dialog->addPage(behaviorConfigWidget, i18nc("@title:tab", "Behavior"), QStringLiteral("preferences-other"));
-    KTimeTrackerDisplayConfig *displayConfig = new KTimeTrackerDisplayConfig(dialog);
-    QWidget *displayConfigWidget = displayConfig->widget();
-    dialog->addPage(displayConfigWidget, i18nc("@title:tab", "Appearance"), QStringLiteral("preferences-desktop-theme"));
-    KTimeTrackerStorageConfig *storageConfig = new KTimeTrackerStorageConfig(dialog);
-    QWidget *storageConfigWidget = storageConfig->widget();
-    dialog->addPage(storageConfigWidget, i18nc("@title:tab", "Storage"), QStringLiteral("system-file-manager"));
+    auto *behaviorConfig = new KTimeTrackerBehaviorConfig(new QWidget(dialog));
+    dialog->addPage(behaviorConfig->widget(), i18nc("@title:tab", "Behavior"), QStringLiteral("preferences-other"));
+    auto *displayConfig = new KTimeTrackerDisplayConfig(new QWidget(dialog));
+    dialog->addPage(displayConfig->widget(), i18nc("@title:tab", "Appearance"), QStringLiteral("preferences-desktop-theme"));
+    auto *storageConfig = new KTimeTrackerStorageConfig(new QWidget(dialog));
+    dialog->addPage(storageConfig->widget(), i18nc("@title:tab", "Storage"), QStringLiteral("system-file-manager"));
     connect(dialog, &KConfigDialog::settingsChanged, this, &TimeTrackerWidget::loadSettings);
     dialog->show();
 }
@@ -691,6 +761,8 @@ void TimeTrackerWidget::showSettingsDialog()
 void TimeTrackerWidget::loadSettings()
 {
     KTimeTrackerSettings::self()->load();
+    applyColorScheme();
+    Q_EMIT trayIconSettingChanged(KTimeTrackerSettings::trayIcon());
 
     showSearchBar(!KTimeTrackerSettings::configPDA() && KTimeTrackerSettings::showSearchBar());
     currentTaskView()->reconfigureModel();

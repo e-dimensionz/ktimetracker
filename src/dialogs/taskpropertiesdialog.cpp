@@ -26,7 +26,8 @@ TaskPropertiesDialog::TaskPropertiesDialog(QWidget *parent,
                                            const QString &caption,
                                            const QString &name,
                                            const QString &description,
-                                           const DesktopList &desktops)
+                                           const DesktopList &desktops,
+                                           bool projectTask)
     : QDialog(parent)
     , m_nameText(nullptr)
     , m_descText(nullptr)
@@ -39,21 +40,20 @@ TaskPropertiesDialog::TaskPropertiesDialog(QWidget *parent,
     setLayout(mainLayout);
 
     // Task group
-    auto *infoGroup = new QGroupBox(i18nc("@title:group", "Task"), this);
+    const QString itemType = projectTask ? i18nc("@title:group", "Project Task") : i18nc("@title:group", "Project");
+    auto *infoGroup = new QGroupBox(itemType, this);
     auto *infoLayout = new QGridLayout(infoGroup);
     infoGroup->setLayout(infoLayout);
 
     m_nameText = new QLineEdit(name, infoGroup);
-    m_nameText->setWhatsThis(i18nc("@info:whatsthis",
-                                   "<p>Enter the name of the task here. You can choose it freely.</p>\n"
-                                   "<p><i>Example:</i> phone with mother</p>"));
+    m_nameText->setWhatsThis(i18nc("@info:whatsthis", "<p>Enter the name of the %1 here. You can choose it freely.</p>", itemType.toLower()));
     infoLayout->addWidget(m_nameText, 0, 1);
-    infoLayout->addWidget(new QLabel(i18n("Task Name:")), 0, 0);
+    infoLayout->addWidget(new QLabel(projectTask ? i18n("Project Task Name:") : i18n("Project Name:")), 0, 0);
 
     m_descText = new QPlainTextEdit(description, infoGroup);
     m_descText->setWordWrapMode(QTextOption::WordWrap);
     infoLayout->addWidget(m_descText, 1, 1);
-    infoLayout->addWidget(new QLabel(i18n("Task Description:")), 1, 0);
+    infoLayout->addWidget(new QLabel(projectTask ? i18n("Project Task Description:") : i18n("Project Description:")), 1, 0);
 
     // Desktop tracking group
     m_trackingGroup = new QGroupBox(i18nc("@title:group", "Auto Tracking"), this);

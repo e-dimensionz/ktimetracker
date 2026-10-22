@@ -46,6 +46,7 @@ ExportDialog::ExportDialog(QWidget *parent, TaskView *taskView)
     connect(ui.radioHistoryCsv, &QRadioButton::toggled, this, &ExportDialog::updateUI);
     connect(ui.radioEventLogCsv, &QRadioButton::toggled, this, &ExportDialog::updateUI);
     connect(ui.radioTimesText, &QRadioButton::toggled, this, &ExportDialog::updateUI);
+    connect(ui.radioTimesTree, &QRadioButton::toggled, this, &ExportDialog::updateUI);
     connect(ui.radioComma, &QRadioButton::toggled, this, &ExportDialog::updateUI);
     connect(ui.radioSemicolon, &QRadioButton::toggled, this, &ExportDialog::updateUI);
     connect(ui.radioOther, &QRadioButton::toggled, this, &ExportDialog::updateUI);
@@ -76,13 +77,25 @@ void ExportDialog::exportToClipboard()
 
 void ExportDialog::exportToFile()
 {
-    const QUrl &url = QFileDialog::getSaveFileUrl(this, i18nc("@title:window", "Export to File"));
+    QString selectedFilter;
+    QUrl url = QFileDialog::getSaveFileUrl(this,
+                                           i18nc("@title:window", "Export to File"),
+                                           QUrl(),
+                                           i18n("CSV and text (*.csv *.txt);;Excel workbook (*.xlsx);;PDF document (*.pdf)"),
+                                           &selectedFilter);
     if (url.isEmpty()) {
         return;
     }
+    if (QFileInfo(url.path()).suffix().isEmpty()) {
+        const QString extension = selectedFilter.contains(QStringLiteral("*.xlsx")) ? QStringLiteral(".xlsx")
+            : selectedFilter.contains(QStringLiteral("*.pdf")) ? QStringLiteral(".pdf")
+                                                                 : QStringLiteral(".csv");
+        url.setPath(url.path() + extension);
+    }
 
-    QString output = exportToString(m_taskView->storage()->projectModel(), m_taskView->tasksWidget()->currentItem(), reportCriteria());
-    QString err = writeExport(output, url);
+    const ReportCriteria criteria = reportCriteria();
+    QString output = exportToString(m_taskView->storage()->projectModel(), m_taskView->tasksWidget()->currentItem(), criteria);
+    QString err = writeExport(output, url, criteria);
     if (err.isEmpty()) {
         // Close export dialog after saving
         accept();
@@ -116,7 +129,7 @@ ReportCriteria ExportDialog::reportCriteria()
 
     rc.quote = ui.cboQuote->currentText();
     rc.sessionTimes = (i18n("Session Times") == ui.combosessiontimes->currentText());
-    rc.allTasks = (i18n("All Tasks") == ui.comboalltasks->currentText());
+    rc.allTasks = (i18n("All Projects and Tasks") == ui.comboalltasks->currentText());
     return rc;
 }
 
@@ -131,6 +144,8 @@ void ExportDialog::updateUI()
         rt = ReportCriteria::CSVEventLogExport;
     } else if (ui.radioTimesText->isChecked()) {
         rt = ReportCriteria::TextTotalsExport;
+    } else if (ui.radioTimesTree->isChecked()) {
+        rt = ReportCriteria::TreeTotalsExport;
     } else {
         qCWarning(KTT_LOG) << "*** ExportDialog::updateUI: Unexpected report type choice";
         rt = ReportCriteria::TextTotalsExport;
@@ -144,6 +159,7 @@ void ExportDialog::updateUI()
         ui.grpDateRange->show();
         break;
     case ReportCriteria::TextTotalsExport:
+    case ReportCriteria::TreeTotalsExport:
     case ReportCriteria::CSVTotalsExport:
     default:
         ui.grpDateRange->setEnabled(false);

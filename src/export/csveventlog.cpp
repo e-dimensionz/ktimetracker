@@ -12,7 +12,7 @@
 #include "model/task.h"
 #include "model/tasksmodel.h"
 
-QString exportCSVEventLogToString(ProjectModel *projectModel, const ReportCriteria &rc)
+QString exportCSVEventLogToString(ProjectModel *projectModel, Task *currentTask, const ReportCriteria &rc)
 {
     const QDate &from = rc.from;
     const QDate &to = rc.to;
@@ -22,6 +22,12 @@ QString exportCSVEventLogToString(ProjectModel *projectModel, const ReportCriter
     QStringList events;
     QString row;
     QString header;
+    QSet<QString> taskUids;
+    if (!rc.allTasks && currentTask) {
+        for (Task *task : currentTask->selfAndDescendants()) {
+            taskUids.insert(task->uid());
+        }
+    }
 
     // Write header columns
     header.append(QStringLiteral("Start"));
@@ -42,7 +48,11 @@ QString exportCSVEventLogToString(ProjectModel *projectModel, const ReportCriter
         QDateTime start = event->dtStart();
         QDateTime end = event->dtEnd();
 
-        if (start.date() < from || end.date() > to) {
+        const QDate effectiveEndDate = event->hasEndDate() ? end.date() : QDate::currentDate();
+        if (start.date() > to || effectiveEndDate < from) {
+            continue;
+        }
+        if (!rc.allTasks && !taskUids.contains(event->relatedTo())) {
             continue;
         }
 

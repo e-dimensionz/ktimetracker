@@ -13,6 +13,14 @@ SPDX-License-Identifier: GPL-2.0-or-later
     <entry name="showSearchBar" type="Bool">
       <default>true</default>
     </entry>
+    <entry name="colorScheme" type="Enum">
+      <choices>
+        <choice name="system"/>
+        <choice name="light"/>
+        <choice name="dark"/>
+      </choices>
+      <default>system</default>
+    </entry>
   </group>
   <group name="Idle detection">
     <entry name="enabled" type="Bool">

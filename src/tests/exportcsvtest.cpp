@@ -8,9 +8,11 @@
 
 #include "base/taskview.h"
 #include "export/export.h"
+#include "export/exportformats.h"
 #include "export/totalsastext.h"
 #include "helpers.h"
 #include "model/task.h"
+#include "model/tasksmodel.h"
 #include "widgets/taskswidget.h"
 
 class ExportCSVTest : public QObject
@@ -24,6 +26,10 @@ private Q_SLOTS:
     void testTotalsEmpty();
     void testTotalsSimpleTree();
     void testTimesSimpleTree();
+    void testWorkedTimeTreeExport();
+    void testSelectedProjectFiltersExports();
+    void testXlsxOutputSignature();
+    void testPdfOutputSignature();
     // void testHistorySimpleTree();
 };
 
@@ -98,6 +104,60 @@ void ExportCSVTest::testTimesSimpleTree()
         "\"1\";;0:05;0:05;0:08;0:08\n"
         ";\"2\";0:03;0:03;0:03;0:03\n");
     QCOMPARE(readTextFile(url.toLocalFile()), expected);
+}
+
+void ExportCSVTest::testWorkedTimeTreeExport()
+{
+    QLocale::setDefault(QLocale(QLocale::C));
+
+    auto *taskView = createTaskView(this, true);
+    QVERIFY(taskView);
+
+    const auto rc = createRC(ReportCriteria::TreeTotalsExport);
+    const QString output = totalsAsTreeText(taskView->storage()->tasksModel(), taskView->tasksWidget()->currentItem(), rc);
+    QVERIFY(output.contains(QStringLiteral("Worked Time by Project")));
+    QVERIFY(output.contains(QStringLiteral("Project / Project Task")));
+    QVERIFY(output.contains(QStringLiteral("\\-- 2")));
+    QVERIFY(output.contains(QStringLiteral("0:15  Total")));
+}
+
+void ExportCSVTest::testSelectedProjectFiltersExports()
+{
+    QLocale::setDefault(QLocale(QLocale::C));
+
+    auto *taskView = createTaskView(this, true);
+    QVERIFY(taskView);
+    auto *tasksModel = taskView->storage()->tasksModel();
+    QVERIFY(tasksModel->topLevelItemCount() > 1);
+
+    auto *selectedProject = dynamic_cast<Task *>(tasksModel->topLevelItem(0));
+    auto *siblingProject = dynamic_cast<Task *>(tasksModel->topLevelItem(1));
+    QVERIFY(selectedProject);
+    QVERIFY(siblingProject);
+
+    auto rc = createRC(ReportCriteria::CSVTotalsExport);
+    rc.allTasks = false;
+    const QString totals = exportToString(taskView->storage()->projectModel(), selectedProject, rc);
+    QVERIFY(totals.contains(QStringLiteral("\"%1\"").arg(selectedProject->name())));
+    QVERIFY(!totals.contains(QStringLiteral("\"%1\"").arg(siblingProject->name())));
+
+    rc.reportType = ReportCriteria::CSVEventLogExport;
+    const QString eventLog = exportToString(taskView->storage()->projectModel(), selectedProject, rc);
+    QVERIFY(!eventLog.contains(siblingProject->name()));
+}
+
+void ExportCSVTest::testXlsxOutputSignature()
+{
+    auto rc = createRC(ReportCriteria::CSVTotalsExport);
+    rc.delimiter = QStringLiteral(",");
+    const QByteArray workbook = exportXlsxToByteArray(QStringLiteral("\"Task\",\"Time\"\n\"A, B\",\"0:30\"\n"), rc);
+    QCOMPARE(workbook.left(4), QByteArray("PK\x03\x04", 4));
+}
+
+void ExportCSVTest::testPdfOutputSignature()
+{
+    const QByteArray pdf = exportPdfToByteArray(QStringLiteral("Worked time report\nTask  0:30\n"));
+    QCOMPARE(pdf.left(4), QByteArray("%PDF", 4));
 }
 
 // void ExportCSVTest::testHistorySimpleTree()

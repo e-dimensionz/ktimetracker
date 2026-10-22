@@ -11,7 +11,8 @@
 #include "base/reportcriteria.h"
 
 class TasksModel;
+class Task;
 
-QString exportCSVToString(TasksModel *tasksModel, const ReportCriteria &rc);
+QString exportCSVToString(TasksModel *tasksModel, Task *currentTask, const ReportCriteria &rc);
 
 #endif // KTIMETRACKER_CSVTOTALS_H

@@ -7,11 +7,13 @@ target_sources(ktt-export
     csvhistory.cpp csvhistory.h
     csvtotals.cpp csvtotals.h
     export.cpp export.h
+    exportformats.cpp exportformats.h
     totalsastext.cpp totalsastext.h
 )
 
 target_link_libraries(ktt-export
     PRIVATE
     ktt-deps
+    PkgConfig::LIBZIP
 )
 

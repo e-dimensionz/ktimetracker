@@ -34,6 +34,73 @@
 #include "treeviewheadercontextmenu.h"
 #include "widgets/taskswidget.h"
 
+namespace
+{
+bool isEffectivelyComplete(Task *task)
+{
+    if (task->isComplete()) {
+        return true;
+    }
+
+    bool hasTaskChildren = false;
+    for (int index = 0; index < task->childCount(); ++index) {
+        auto *childTask = dynamic_cast<Task *>(task->child(index));
+        if (childTask) {
+            hasTaskChildren = true;
+            if (!isEffectivelyComplete(childTask)) {
+                return false;
+            }
+        }
+    }
+
+    return hasTaskChildren;
+}
+}
+
+class TaskFilterProxyModel : public QSortFilterProxyModel
+{
+public:
+    explicit TaskFilterProxyModel(QObject *parent)
+        : QSortFilterProxyModel(parent)
+    {
+    }
+
+    void setShowCompleted(bool showCompleted)
+    {
+        if (m_showCompleted == showCompleted) {
+            return;
+        }
+    #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+        beginFilterChange();
+        m_showCompleted = showCompleted;
+        endFilterChange();
+    #else
+        m_showCompleted = showCompleted;
+        invalidateFilter();
+    #endif
+    }
+
+protected:
+    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override
+    {
+        if (!m_showCompleted) {
+            auto *tasksModel = qobject_cast<TasksModel *>(sourceModel());
+            if (tasksModel) {
+                const QModelIndex sourceIndex = tasksModel->index(sourceRow, 0, sourceParent);
+                auto *task = dynamic_cast<Task *>(tasksModel->item(sourceIndex));
+                if (task && isEffectivelyComplete(task)) {
+                    return false;
+                }
+            }
+        }
+
+        return QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent);
+    }
+
+private:
+    bool m_showCompleted = true;
+};
+
 void deleteEntry(const QString &key)
 {
     KConfigGroup config = KSharedConfig::openConfig()->group(QString());
@@ -43,7 +110,7 @@ void deleteEntry(const QString &key)
 
 TaskView::TaskView(QWidget *parent)
     : QObject(parent)
-    , m_filterProxyModel(new QSortFilterProxyModel(this))
+    , m_filterProxyModel(new TaskFilterProxyModel(this))
     , m_storage(new TimeTrackerStorage())
     , m_focusTrackingActive(false)
     , m_lastTaskWithFocus(nullptr)
@@ -119,6 +186,11 @@ void TaskView::newFocusWindowDetected(const QString &taskName)
 TimeTrackerStorage *TaskView::storage()
 {
     return m_storage;
+}
+
+void TaskView::setShowCompleted(bool showCompleted)
+{
+    m_filterProxyModel->setShowCompleted(showCompleted);
 }
 
 TaskView::~TaskView()
@@ -335,10 +407,10 @@ void TaskView::minuteUpdate()
 
 void TaskView::newTask(const QString &caption, Task *parent)
 {
-    QPointer<TaskPropertiesDialog> dialog = new TaskPropertiesDialog(m_tasksWidget->parentWidget(), caption, QString(), QString(), DesktopList());
+    QPointer<TaskPropertiesDialog> dialog = new TaskPropertiesDialog(m_tasksWidget->parentWidget(), caption, QString(), QString(), DesktopList(), parent != nullptr);
 
     if (dialog->exec() == QDialog::Accepted) {
-        QString taskName = i18n("Unnamed Task");
+        QString taskName = parent ? i18n("Unnamed Project Task") : i18n("Unnamed Project");
         if (!dialog->name().isEmpty()) {
             taskName = dialog->name();
         }
@@ -394,7 +466,7 @@ void TaskView::newSubTask()
         return;
     }
 
-    newTask(i18nc("@title:window", "New Sub Task"), task);
+    newTask(i18nc("@title:window", "New Project Task"), task);
 
     m_tasksWidget->setExpanded(m_filterProxyModel->mapFromSource(storage()->tasksModel()->index(task, 0)), true);
 
@@ -411,10 +483,15 @@ void TaskView::editTask()
     }
 
     auto oldDeskTopList = task->desktops();
-    QPointer<TaskPropertiesDialog> dialog =
-        new TaskPropertiesDialog(m_tasksWidget->parentWidget(), i18nc("@title:window", "Edit Task"), task->name(), task->description(), oldDeskTopList);
+    const bool projectTask = task->parentTask() != nullptr;
+    QPointer<TaskPropertiesDialog> dialog = new TaskPropertiesDialog(m_tasksWidget->parentWidget(),
+                                                                     projectTask ? i18nc("@title:window", "Edit Project Task") : i18nc("@title:window", "Edit Project"),
+                                                                     task->name(),
+                                                                     task->description(),
+                                                                     oldDeskTopList,
+                                                                     projectTask);
     if (dialog->exec() == QDialog::Accepted) {
-        QString name = i18n("Unnamed Task");
+        QString name = projectTask ? i18n("Unnamed Project Task") : i18n("Unnamed Project");
         if (!dialog->name().isEmpty()) {
             name = dialog->name();
         }

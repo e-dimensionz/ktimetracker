@@ -16,5 +16,6 @@ class Task;
 
 QString exportToString(ProjectModel *model, Task *currentTask, const ReportCriteria &rc);
 QString writeExport(const QString &data, const QUrl &url);
+QString writeExport(const QString &data, const QUrl &url, const ReportCriteria &criteria);
 
 #endif // KTIMETRACKER_EXPORT_H

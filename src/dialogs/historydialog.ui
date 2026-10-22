@@ -120,8 +120,62 @@ SPDX-License-Identifier: GPL-2.0-or-later
         </widget>
      </item>
      <item>
-    <widget class="QTableWidget" name="historytablewidget"/>
-   </item>
+      <widget class="QTabWidget" name="activityTabs">
+       <property name="currentIndex">
+        <number>0</number>
+       </property>
+       <widget class="QWidget" name="activityPage">
+        <attribute name="title">
+         <string>Activity</string>
+        </attribute>
+        <layout class="QVBoxLayout" name="activityPageLayout">
+         <item>
+          <widget class="QTableWidget" name="historytablewidget"/>
+         </item>
+         <item>
+          <widget class="QLabel" name="activityEmptyState">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>No activity recorded</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="timelinePage">
+        <attribute name="title">
+         <string>Timeline</string>
+        </attribute>
+        <layout class="QVBoxLayout" name="timelinePageLayout">
+         <item>
+          <widget class="QScrollArea" name="timelineScrollArea">
+           <property name="widgetResizable">
+            <bool>true</bool>
+           </property>
+           <widget class="QWidget" name="timelineContainer">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>0</y>
+              <width>620</width>
+              <height>220</height>
+             </rect>
+            </property>
+           </widget>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </widget>
+     </item>
      <item>
     <widget class="QDialogButtonBox" name="buttonbox">
      <property name="standardButtons">

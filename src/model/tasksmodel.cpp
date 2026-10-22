@@ -16,7 +16,7 @@
 
 TasksModel::TasksModel()
     : m_rootItem(new TasksModelItem(this, nullptr))
-    , m_headerLabels{i18nc("@title:column", "Task Name"),
+    , m_headerLabels{i18nc("@title:column", "Project / Project Task"),
                      i18nc("@title:column", "Session Time"),
                      i18nc("@title:column", "Time"),
                      i18nc("@title:column", "Total Session Time"),

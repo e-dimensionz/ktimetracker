@@ -23,5 +23,6 @@ class Task;
  * @param rc Criteria which filters the task information.
  */
 QString totalsAsText(TasksModel *model, Task *currentItem, const ReportCriteria &rc);
+QString totalsAsTreeText(TasksModel *model, Task *currentItem, const ReportCriteria &rc);
 
 #endif // KTIMETRACKER_TOTALSASTEXT_H

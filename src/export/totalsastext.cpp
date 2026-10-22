@@ -105,3 +105,85 @@ QString totalsAsText(TasksModel *model, Task *currentItem, const ReportCriteria 
 
     return retval;
 }
+
+namespace
+{
+int64_t selectedTime(const Task *task, const ReportCriteria &rc)
+{
+    return rc.sessionTimes ? task->totalSessionTime() : task->totalTime();
+}
+
+bool hasWorkedTime(const Task *task, const ReportCriteria &rc)
+{
+    if (selectedTime(task, rc) != 0) {
+        return true;
+    }
+    for (int index = 0; index < task->childCount(); ++index) {
+        const auto *child = dynamic_cast<const Task *>(task->child(index));
+        if (child && hasWorkedTime(child, rc)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void appendTreeTask(const Task *task, QString &output, const QString &prefix, bool isRoot, bool isLast, const ReportCriteria &rc)
+{
+    QString label = prefix;
+    if (!isRoot) {
+        label += isLast ? QStringLiteral("\\-- ") : QStringLiteral("|-- ");
+    }
+    label += task->name();
+    output += label.leftJustified(44) + formatTime(static_cast<double>(selectedTime(task, rc)), rc.decimalMinutes).rightJustified(8) + QLatin1Char('\n');
+
+    QList<const Task *> children;
+    for (int index = 0; index < task->childCount(); ++index) {
+        const auto *child = dynamic_cast<const Task *>(task->child(index));
+        if (child && hasWorkedTime(child, rc)) {
+            children.append(child);
+        }
+    }
+    const QString childPrefix = prefix + (isRoot ? QString() : (isLast ? QStringLiteral("    ") : QStringLiteral("|   ")));
+    for (int index = 0; index < children.size(); ++index) {
+        appendTreeTask(children.at(index), output, childPrefix, false, index == children.size() - 1, rc);
+    }
+}
+}
+
+QString totalsAsTreeText(TasksModel *model, Task *currentItem, const ReportCriteria &rc)
+{
+    constexpr int nameWidth = 44;
+    constexpr int timeWidth = 8;
+    const QString newline = QStringLiteral("\n");
+    QString output = i18n("Worked Time by Project") + newline;
+    output += QLocale().toString(QDateTime::currentDateTime()) + newline + newline;
+    output += i18n("Project / Project Task").leftJustified(nameWidth) + i18n("Time").rightJustified(timeWidth) + newline;
+    output += QString(nameWidth + timeWidth, QLatin1Char('-')) + newline;
+
+    QList<const Task *> roots;
+    if (rc.allTasks) {
+        for (int index = 0; index < model->topLevelItemCount(); ++index) {
+            const auto *task = dynamic_cast<const Task *>(model->topLevelItem(index));
+            if (task && hasWorkedTime(task, rc)) {
+                roots.append(task);
+            }
+        }
+    } else if (currentItem && hasWorkedTime(currentItem, rc)) {
+        roots.append(currentItem);
+    }
+
+    int64_t total = 0;
+    for (const Task *task : std::as_const(roots)) {
+        total += selectedTime(task, rc);
+        appendTreeTask(task, output, QString(), true, true, rc);
+    }
+
+    if (roots.isEmpty()) {
+        output += i18n("No tasks with recorded time.");
+        return output;
+    }
+
+    output += QString(nameWidth + timeWidth, QLatin1Char('-')) + newline;
+    output += formatTime(static_cast<double>(total), rc.decimalMinutes).rightJustified(timeWidth) + QStringLiteral("  ") + i18n("Total");
+    return output;
+}

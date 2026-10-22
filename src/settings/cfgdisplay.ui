@@ -131,6 +131,41 @@ SPDX-License-Identifier: GPL-2.0-or-later
      </layout>
     </widget>
    </item>
+     <item>
+        <widget class="QGroupBox" name="colorSchemeGroupBox">
+         <property name="title">
+            <string>Color theme</string>
+         </property>
+         <layout class="QFormLayout" name="colorSchemeLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="colorSchemeLabel">
+                <property name="text">
+                 <string>Theme</string>
+                </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QComboBox" name="kcfg_colorScheme">
+                <item>
+                 <property name="text">
+                    <string>System</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                    <string>Light</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                    <string>Dark</string>
+                 </property>
+                </item>
+             </widget>
+            </item>
+         </layout>
+        </widget>
+     </item>
    <item>
     <spacer>
      <property name="orientation">

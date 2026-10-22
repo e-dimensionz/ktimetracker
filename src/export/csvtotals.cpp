@@ -13,7 +13,7 @@
 #include "model/task.h"
 #include "model/tasksmodel.h"
 
-QString exportCSVToString(TasksModel *tasksModel, const ReportCriteria &rc)
+QString exportCSVToString(TasksModel *tasksModel, Task *currentTask, const ReportCriteria &rc)
 {
     QString delim = rc.delimiter;
     QString dquote = rc.quote;
@@ -21,9 +21,12 @@ QString exportCSVToString(TasksModel *tasksModel, const ReportCriteria &rc)
 
     QString retval;
 
+    const QList<Task *> tasks = rc.allTasks ? tasksModel->getAllTasks() : (currentTask ? currentTask->selfAndDescendants() : QList<Task *>{});
+    const int depthOffset = rc.allTasks || !currentTask ? 0 : currentTask->depth();
+
     // Find max task depth
     int maxdepth = 0;
-    for (Task *task : tasksModel->getAllTasks()) {
+    for (Task *task : tasks) {
         //        if (dialog.wasCanceled()) {
         //            break;
         //        }
@@ -35,13 +38,13 @@ QString exportCSVToString(TasksModel *tasksModel, const ReportCriteria &rc)
         //        }
         QApplication::processEvents();
 
-        if (task->depth() > maxdepth) {
-            maxdepth = task->depth();
+        if (task->depth() - depthOffset > maxdepth) {
+            maxdepth = task->depth() - depthOffset;
         }
     }
 
     // Export to file
-    for (Task *task : tasksModel->getAllTasks()) {
+    for (Task *task : tasks) {
         //        if (dialog.wasCanceled()) {
         //            break;
         //        }
@@ -54,7 +57,8 @@ QString exportCSVToString(TasksModel *tasksModel, const ReportCriteria &rc)
         QApplication::processEvents();
 
         // indent the task in the csv-file:
-        for (int i = 0; i < task->depth(); ++i) {
+        const int relativeDepth = task->depth() - depthOffset;
+        for (int i = 0; i < relativeDepth; ++i) {
             retval += delim;
         }
 
@@ -81,7 +85,7 @@ QString exportCSVToString(TasksModel *tasksModel, const ReportCriteria &rc)
         }
 
         // maybe other tasks are more indented, so to align the columns:
-        for (int i = 0; i < maxdepth - task->depth(); ++i) {
+        for (int i = 0; i < maxdepth - relativeDepth; ++i) {
             retval += delim;
         }
 

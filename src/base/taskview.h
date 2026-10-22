@@ -26,6 +26,7 @@ class TimeTrackerStorage;
 class FocusDetector;
 class TasksModel;
 class TasksWidget;
+class TaskFilterProxyModel;
 
 /**
  * Container and interface for the tasks.
@@ -149,6 +150,7 @@ public Q_SLOTS:
 
     /** Reconfigures taskView depending on current configuration. */
     void reconfigureModel();
+    void setShowCompleted(bool showCompleted);
 
     /** Refresh the times of the tasks, e.g. when the history has been changed by the user */
     QString reFreshTimes();
@@ -170,7 +172,7 @@ Q_SIGNALS:
     void contextMenuRequested(const QPoint &);
 
 private: // member variables
-    QSortFilterProxyModel *m_filterProxyModel;
+    TaskFilterProxyModel *m_filterProxyModel;
 
     IdleTimeDetector *m_idleTimeDetector;
     QTimer *m_minuteTimer;

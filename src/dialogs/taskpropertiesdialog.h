@@ -21,7 +21,7 @@ class QCheckBox;
 class TaskPropertiesDialog : public QDialog
 {
 public:
-    TaskPropertiesDialog(QWidget *parent, const QString &caption, const QString &name, const QString &description, const DesktopList &desktops);
+    TaskPropertiesDialog(QWidget *parent, const QString &caption, const QString &name, const QString &description, const DesktopList &desktops, bool projectTask);
     ~TaskPropertiesDialog() override = default;
 
     QString name() const;

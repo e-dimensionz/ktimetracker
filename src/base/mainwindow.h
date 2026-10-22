@@ -34,6 +34,10 @@ protected Q_SLOTS:
     void updateWindowCaptionTasks(const QList<Task *> &activeTasks);
     void updateWindowCaptionFile(const QUrl &url);
 
+private Q_SLOTS:
+    void setTrayIconEnabled(bool enabled);
+    void updateTrayIconTasks(const QList<Task *> &activeTasks);
+
 protected:
     bool queryClose() override;
 

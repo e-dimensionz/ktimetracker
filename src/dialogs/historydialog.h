@@ -12,6 +12,8 @@
 
 #include "ui_historydialog.h"
 
+class ActivityTimelineWidget;
+class Event;
 class ProjectModel;
 class Task;
 
@@ -38,6 +40,7 @@ private Q_SLOTS:
 
     void onDeleteClicked();
     void on_buttonbox_rejected();
+    void updateTimelineView();
 
 private:
     QString listAllEvents();
@@ -46,6 +49,8 @@ private:
 
     ProjectModel *m_projectModel;
     Task *m_scopeTask;
+    QList<Event *> m_visibleEvents;
+    ActivityTimelineWidget *m_timelineWidget;
     Ui::HistoryDialog m_ui;
 };
 

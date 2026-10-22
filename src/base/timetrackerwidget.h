@@ -204,6 +204,7 @@ Q_SIGNALS:
     void contextMenuRequested(const QPoint &pos);
     void timersActive();
     void timersInactive();
+    void trayIconSettingChanged(bool enabled);
 
     // Used to update text in tray icon
     // and window title if the window title is configured to display the active tasks

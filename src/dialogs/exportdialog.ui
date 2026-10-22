@@ -113,6 +113,13 @@ SPDX-License-Identifier: GPL-2.0-or-later
         </property>
        </widget>
       </item>
+    <item>
+     <widget class="QRadioButton" name="radioTimesTree">
+      <property name="text">
+       <string>Worked Time by Project Tree</string>
+      </property>
+     </widget>
+    </item>
      </layout>
     </widget>
    </item>
@@ -209,12 +216,12 @@ SPDX-License-Identifier: GPL-2.0-or-later
     <widget class="QComboBox" name="comboalltasks">
      <item>
       <property name="text">
-       <string>All Tasks</string>
+      <string>All Projects and Tasks</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Only Selected</string>
+      <string>Selected Project / Task</string>
       </property>
      </item>
     </widget>
