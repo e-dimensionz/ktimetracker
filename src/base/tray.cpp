@@ -119,9 +119,25 @@ TrayIcon::TrayIcon(MainWindow *parent)
 
     menu->addSeparator();
 
-    auto *minimizeAction = new QAction(i18nc("tray menu action", "Minimize"), this);
-    connect(minimizeAction, &QAction::triggered, m_mainWindow, &QWidget::showMinimized);
-    menu->addAction(minimizeAction);
+    auto *windowAction = new QAction(this);
+    const auto updateWindowAction = [this, windowAction] {
+        const bool shouldMaximize = !m_mainWindow->isVisible() || m_mainWindow->isMinimized();
+        windowAction->setText(shouldMaximize ? i18nc("tray menu action", "Maximize") : i18nc("tray menu action", "Minimize"));
+    };
+    connect(menu, &QMenu::aboutToShow, this, updateWindowAction);
+    connect(windowAction, &QAction::triggered, this, [this, windowAction] {
+        if (!m_mainWindow->isVisible() || m_mainWindow->isMinimized()) {
+            windowAction->setText(i18nc("tray menu action", "Minimize"));
+            m_mainWindow->showMaximized();
+            m_mainWindow->raise();
+            m_mainWindow->activateWindow();
+        } else {
+            windowAction->setText(i18nc("tray menu action", "Maximize"));
+            m_mainWindow->showMinimized();
+        }
+    });
+    updateWindowAction();
+    menu->addAction(windowAction);
 
     auto *quitAction = new QAction(i18nc("tray menu action", "Quit"), this);
     connect(quitAction, &QAction::triggered, m_mainWindow, &MainWindow::quit);
