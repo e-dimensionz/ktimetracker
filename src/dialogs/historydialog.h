@@ -13,13 +13,14 @@
 #include "ui_historydialog.h"
 
 class ProjectModel;
+class Task;
 
 class HistoryDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit HistoryDialog(QWidget *parent, ProjectModel *projectModel);
+    explicit HistoryDialog(QWidget *parent, ProjectModel *projectModel, Task *scopeTask = nullptr);
     ~HistoryDialog() override = default;
 
     static const QString dateTimeFormat;
@@ -40,9 +41,11 @@ private Q_SLOTS:
 
 private:
     QString listAllEvents();
-    QString refresh();
+    void refresh();
+    void updateScopeSummary();
 
     ProjectModel *m_projectModel;
+    Task *m_scopeTask;
     Ui::HistoryDialog m_ui;
 };
 

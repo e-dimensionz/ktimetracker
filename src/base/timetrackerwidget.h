@@ -9,11 +9,14 @@
 #define TIMETRACKER_WIDGET_H
 
 #include <QDateTime>
+#include <QList>
 #include <QUrl>
 #include <QWidget>
 
 QT_BEGIN_NAMESPACE
 class QAction;
+class QLabel;
+class QToolButton;
 QT_END_NAMESPACE
 
 class KActionCollection;
@@ -124,6 +127,7 @@ public Q_SLOTS:
     void newSubTask();
     void editTask();
     void editTaskTime();
+    void showTaskActivity();
     void deleteTask();
     void markTaskAsComplete();
     void markTaskAsIncomplete();
@@ -189,6 +193,7 @@ private Q_SLOTS:
     void slotCurrentChanged();
     void slotAddTask(const QString &taskName);
     void slotUpdateButtons();
+    void updateTimerSummary(const QList<Task *> &activeTasks);
 
 Q_SIGNALS:
     void currentFileChanged(const QUrl &file);
@@ -215,6 +220,9 @@ private:
     SearchLine *m_searchLine;
     TaskView *m_taskView;
     KActionCollection *m_actionCollection;
+    QLabel *m_timerStateLabel;
+    QLabel *m_activeTaskLabel;
+    QLabel *m_activeTimeLabel;
 };
 
 #endif

@@ -32,6 +32,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
             <Action name="new_sub_task" />
             <Action name="delete_task" />
             <Action name="edit_task" />
+            <Action name="task_activity" />
             <Separator />
             <Action name="mark_as_complete" />
             <Action name="mark_as_incomplete" />
@@ -41,22 +42,6 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <Action name="searchbar" />
         </Menu>
     </MenuBar>
-    <ToolBar position="top" iconText="icononly" noMerge="1" name="mainToolBar" >
-        <text>Main Toolbar</text>
-        <Action name="new_task" />
-        <Action name="new_sub_task" />
-        <Action name="start" />
-        <Action name="stop" />
-        <Action name="delete_task" />
-        <Action name="edit_task" />
-    </ToolBar>
-    <ToolBar position="top" iconText="icononly" noMerge="1" name="taskToolBar" >
-      <text>Tasks</text>
-      <Action name="file_new" />
-      <Action name="file_open" />
-      <Action name="file_save" />
-    </ToolBar>
-
     <Menu name="task_popup">
       <Action name="start" />
       <Action name="stop" />
@@ -67,6 +52,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
       <Action name="delete_task" />
       <Action name="edit_task_time" />
       <Action name="edit_task" />
+    <Action name="task_activity" />
       <Separator />
       <Action name="mark_as_complete" />
       <Action name="mark_as_incomplete" />

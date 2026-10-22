@@ -13,22 +13,117 @@ SPDX-License-Identifier: GPL-2.0-or-later
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>1050</width>
+    <height>620</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Edit History</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QFrame" name="activitySummary">
+       <property name="frameShape">
+        <enum>QFrame::NoFrame</enum>
+       </property>
+       <layout class="QHBoxLayout" name="summaryLayout">
+        <property name="leftMargin">
+         <number>14</number>
+        </property>
+        <property name="topMargin">
+         <number>10</number>
+        </property>
+        <property name="rightMargin">
+         <number>14</number>
+        </property>
+        <property name="bottomMargin">
+         <number>10</number>
+        </property>
+        <item>
+         <layout class="QVBoxLayout" name="taskTimeLayout">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="taskTimeCaption">
+           <property name="text">
+            <string>This task</string>
+           </property>
+           <property name="objectName">
+            <string>activityMetricCaption</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="taskTimeValue">
+           <property name="text">
+            <string>0:00</string>
+           </property>
+           <property name="objectName">
+            <string>activityMetricValue</string>
+           </property>
+          </widget>
+         </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QFrame" name="summaryDivider">
+         <property name="frameShape">
+          <enum>QFrame::VLine</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Plain</enum>
+         </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="totalTimeLayout">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="totalTimeCaption">
+           <property name="text">
+            <string>Including subtasks</string>
+           </property>
+           <property name="objectName">
+            <string>activityMetricCaption</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="totalTimeValue">
+           <property name="text">
+            <string>0:00</string>
+           </property>
+           <property name="objectName">
+            <string>activityMetricValue</string>
+           </property>
+          </widget>
+         </item>
+         </layout>
+        </item>
+        <item>
+         <spacer name="summarySpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+         </spacer>
+        </item>
+       </layout>
+        </widget>
+     </item>
+     <item>
     <widget class="QTableWidget" name="historytablewidget"/>
    </item>
-   <item row="0" column="1">
+     <item>
     <widget class="QDialogButtonBox" name="buttonbox">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
      <property name="standardButtons">
       <set>QDialogButtonBox::Close</set>
      </property>

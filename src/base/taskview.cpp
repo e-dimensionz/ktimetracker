@@ -7,6 +7,7 @@
 
 #include "taskview.h"
 
+#include <QHeaderView>
 #include <QMouseEvent>
 #include <QPointer>
 #include <QProgressDialog>
@@ -205,6 +206,7 @@ void TaskView::load(const QUrl &url)
     for (int i = 0; i <= tasksModel->columnCount(QModelIndex()); ++i) {
         m_tasksWidget->resizeColumnToContents(i);
     }
+    m_tasksWidget->header()->setSectionResizeMode(0, QHeaderView::Stretch);
 }
 
 void TaskView::closeStorage()

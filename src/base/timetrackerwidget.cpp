@@ -8,7 +8,12 @@
 #include "timetrackerwidget.h"
 
 #include <QFileDialog>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QPointer>
+#include <QToolButton>
+#include <QVBoxLayout>
 
 #include <KActionCollection>
 #include <KConfigDialog>
@@ -39,19 +44,146 @@ TimeTrackerWidget::TimeTrackerWidget(QWidget *parent)
     , m_searchLine(nullptr)
     , m_taskView(nullptr)
     , m_actionCollection(nullptr)
+    , m_timerStateLabel(nullptr)
+    , m_activeTaskLabel(nullptr)
+    , m_activeTimeLabel(nullptr)
 {
     registerDBus();
 
     QLayout *layout = new QVBoxLayout;
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(0);
+    layout->setContentsMargins(22, 18, 22, 18);
+    layout->setSpacing(12);
     setLayout(layout);
+
+    setStyleSheet(QStringLiteral(R"(
+        TimeTrackerWidget {
+            background: #f3f6f5;
+            color: #1d302d;
+            font-family: "Noto Sans", "Ubuntu", sans-serif;
+            font-size: 10pt;
+        }
+        QLabel#tasksHeading {
+            color: #1d302d;
+            font-size: 17pt;
+            font-weight: 650;
+        }
+        QFrame#timerPanel {
+            background: #ffffff;
+            border: 1px solid #dce6e3;
+            border-left: 4px solid #087f73;
+            border-radius: 8px;
+        }
+        QLabel#timerStateLabel {
+            color: #687975;
+            background: #edf2f1;
+            border-radius: 4px;
+            padding: 3px 7px;
+            font-size: 8pt;
+            font-weight: 700;
+        }
+        QLabel#timerStateLabel[active="true"] {
+            color: #086b60;
+            background: #e0f2ed;
+        }
+        QLabel#activeTaskLabel {
+            color: #203632;
+            font-size: 12pt;
+            font-weight: 600;
+        }
+        QLabel#sessionCaption {
+            color: #6c7b77;
+            font-size: 8pt;
+        }
+        QLabel#activeTimeLabel {
+            color: #173d37;
+            font-size: 22pt;
+            font-weight: 650;
+        }
+        QToolButton {
+            min-height: 36px;
+            padding: 0 12px;
+            border: 1px solid #d7e2df;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #263a36;
+        }
+        QToolButton:hover:enabled {
+            background: #f1f7f5;
+            border-color: #9bbab2;
+        }
+        QToolButton:disabled {
+            color: #a6b2af;
+            background: #f1f4f3;
+        }
+        QToolButton#timerStartButton {
+            color: #ffffff;
+            background: #087f73;
+            border-color: #087f73;
+            font-weight: 600;
+        }
+        QToolButton#timerStartButton:hover:enabled {
+            background: #066d63;
+            border-color: #066d63;
+        }
+        QToolButton#timerStartButton:disabled {
+            color: #e4eeeb;
+            background: #91aaa4;
+            border-color: #91aaa4;
+        }
+        QLineEdit#taskSearchField {
+            min-height: 36px;
+            padding: 0 11px;
+            border: 1px solid #d8e2df;
+            border-radius: 6px;
+            background: #ffffff;
+            selection-background-color: #087f73;
+        }
+        QLineEdit#taskSearchField:focus {
+            border: 1px solid #087f73;
+        }
+        QTreeView#tasksTable {
+            border: 1px solid #dce5e2;
+            border-radius: 6px;
+            background: #ffffff;
+            alternate-background-color: #f7f9f8;
+            outline: 0;
+        }
+        QTreeView#tasksTable::item {
+            min-height: 27px;
+            padding: 5px 7px;
+            border-bottom: 1px solid #edf1f0;
+        }
+        QTreeView#tasksTable::item:hover {
+            background: #eff7f4;
+        }
+        QTreeView#tasksTable::item:selected {
+            color: #173e38;
+            background: #dcefe9;
+        }
+        QHeaderView::section {
+            min-height: 32px;
+            padding: 0 8px;
+            border: 0;
+            border-bottom: 1px solid #dce5e2;
+            background: #edf2f0;
+            color: #52645f;
+            font-size: 9pt;
+            font-weight: 650;
+        }
+    )"));
+
+    connect(this, &TimeTrackerWidget::tasksChanged, this, &TimeTrackerWidget::updateTimerSummary);
+    connect(this, &TimeTrackerWidget::minutesUpdated, this, &TimeTrackerWidget::updateTimerSummary);
 
     fillLayout(nullptr);
 }
 
 void TimeTrackerWidget::fillLayout(TasksWidget *tasksWidget)
 {
+    m_timerStateLabel = nullptr;
+    m_activeTaskLabel = nullptr;
+    m_activeTimeLabel = nullptr;
+
     // Remove all items from layout
     QLayoutItem *child;
     while ((child = layout()->takeAt(0)) != nullptr) {
@@ -60,6 +192,64 @@ void TimeTrackerWidget::fillLayout(TasksWidget *tasksWidget)
     }
 
     if (tasksWidget) {
+        auto *timerPanel = new QFrame(this);
+        timerPanel->setObjectName(QStringLiteral("timerPanel"));
+        auto *timerLayout = new QHBoxLayout(timerPanel);
+        timerLayout->setContentsMargins(17, 12, 15, 12);
+        timerLayout->setSpacing(14);
+
+        auto *timerDetails = new QVBoxLayout;
+        timerDetails->setSpacing(5);
+        m_timerStateLabel = new QLabel(i18n("READY"), timerPanel);
+        m_timerStateLabel->setObjectName(QStringLiteral("timerStateLabel"));
+        m_timerStateLabel->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+        m_activeTaskLabel = new QLabel(i18n("No task running"), timerPanel);
+        m_activeTaskLabel->setObjectName(QStringLiteral("activeTaskLabel"));
+        m_activeTaskLabel->setMinimumWidth(0);
+        m_activeTaskLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        timerDetails->addWidget(m_timerStateLabel);
+        timerDetails->addWidget(m_activeTaskLabel);
+        timerLayout->addLayout(timerDetails, 1);
+
+        auto *sessionLayout = new QVBoxLayout;
+        sessionLayout->setSpacing(0);
+        auto *sessionCaption = new QLabel(i18n("SESSION"), timerPanel);
+        sessionCaption->setObjectName(QStringLiteral("sessionCaption"));
+        m_activeTimeLabel = new QLabel(QStringLiteral("0:00"), timerPanel);
+        m_activeTimeLabel->setObjectName(QStringLiteral("activeTimeLabel"));
+        sessionLayout->addWidget(sessionCaption, 0, Qt::AlignRight);
+        sessionLayout->addWidget(m_activeTimeLabel, 0, Qt::AlignRight);
+        timerLayout->addLayout(sessionLayout);
+
+        auto *addTaskButton = new QToolButton(timerPanel);
+        addTaskButton->setObjectName(QStringLiteral("addTaskButton"));
+        addTaskButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        addTaskButton->setDefaultAction(action(QStringLiteral("new_task")));
+        timerLayout->addWidget(addTaskButton);
+
+        auto *startButton = new QToolButton(timerPanel);
+        startButton->setObjectName(QStringLiteral("timerStartButton"));
+        startButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        startButton->setDefaultAction(action(QStringLiteral("start")));
+        timerLayout->addWidget(startButton);
+
+        auto *stopButton = new QToolButton(timerPanel);
+        stopButton->setObjectName(QStringLiteral("timerStopButton"));
+        stopButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        stopButton->setDefaultAction(action(QStringLiteral("stop")));
+        timerLayout->addWidget(stopButton);
+
+        auto *activityButton = new QToolButton(timerPanel);
+        activityButton->setObjectName(QStringLiteral("taskActivityButton"));
+        activityButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        activityButton->setDefaultAction(action(QStringLiteral("task_activity")));
+        timerLayout->addWidget(activityButton);
+        layout()->addWidget(timerPanel);
+
+        auto *tasksHeading = new QLabel(i18n("Tasks"), this);
+        tasksHeading->setObjectName(QStringLiteral("tasksHeading"));
+        layout()->addWidget(tasksHeading);
+
         m_searchLine = new SearchLine(this);
         connect(m_searchLine, &SearchLine::textSubmitted, this, &TimeTrackerWidget::slotAddTask);
         connect(m_searchLine, &SearchLine::searchUpdated, tasksWidget, &TasksWidget::setFilterText);
@@ -68,6 +258,7 @@ void TimeTrackerWidget::fillLayout(TasksWidget *tasksWidget)
         layout()->addWidget(tasksWidget);
 
         showSearchBar(!KTimeTrackerSettings::configPDA() && KTimeTrackerSettings::showSearchBar());
+        updateTimerSummary(m_taskView->storage()->tasksModel()->getActiveTasks());
     } else {
         auto *placeholderWidget = new QWidget(this);
         placeholderWidget->setBackgroundRole(QPalette::Dark);
@@ -155,6 +346,15 @@ void TimeTrackerWidget::setupActions(KActionCollection *actionCollection)
                                    "comment to them."));
         action->setIcon(QIcon::fromTheme(QStringLiteral("view-history")));
         connect(action, &QAction::triggered, this, &TimeTrackerWidget::editHistory);
+    }
+
+    {
+        QAction *action = actionCollection->addAction(QStringLiteral("task_activity"));
+        action->setText(i18nc("@action:button", "Activity..."));
+        action->setToolTip(i18nc("@info:tooltip", "View tracked sessions and comments for the selected task and its subtasks"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("view-history")));
+        actionCollection->setDefaultShortcut(action, QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H));
+        connect(action, &QAction::triggered, this, &TimeTrackerWidget::showTaskActivity);
     }
 
     {
@@ -403,7 +603,36 @@ void TimeTrackerWidget::slotCurrentChanged()
         connect(m_taskView, &TaskView::minutesUpdated, this, &TimeTrackerWidget::minutesUpdated, Qt::UniqueConnection);
 
         Q_EMIT currentFileChanged(m_taskView->storage()->fileUrl());
+        updateTimerSummary(m_taskView->storage()->tasksModel()->getActiveTasks());
     }
+}
+
+void TimeTrackerWidget::updateTimerSummary(const QList<Task *> &activeTasks)
+{
+    if (!m_timerStateLabel || !m_activeTaskLabel || !m_activeTimeLabel) {
+        return;
+    }
+
+    const bool isActive = !activeTasks.isEmpty();
+    m_timerStateLabel->setText(isActive ? i18n("TRACKING") : i18n("READY"));
+    if (m_timerStateLabel->property("active").toBool() != isActive) {
+        m_timerStateLabel->setProperty("active", isActive);
+        m_timerStateLabel->style()->unpolish(m_timerStateLabel);
+        m_timerStateLabel->style()->polish(m_timerStateLabel);
+    }
+
+    if (!isActive) {
+        m_activeTaskLabel->setText(i18n("No task running"));
+        m_activeTimeLabel->setText(QStringLiteral("0:00"));
+        return;
+    }
+
+    QString taskLabel = activeTasks.first()->name();
+    if (activeTasks.size() > 1) {
+        taskLabel = i18n("%1 (+%2 more)", taskLabel, activeTasks.size() - 1);
+    }
+    m_activeTaskLabel->setText(taskLabel);
+    m_activeTimeLabel->setText(formatTime(activeTasks.first()->sessionTime()));
 }
 
 void TimeTrackerWidget::slotAddTask(const QString &taskName)
@@ -421,6 +650,7 @@ void TimeTrackerWidget::slotUpdateButtons()
     action(QStringLiteral("delete_task"))->setEnabled(item);
     action(QStringLiteral("edit_task_time"))->setEnabled(item);
     action(QStringLiteral("edit_task"))->setEnabled(item);
+    action(QStringLiteral("task_activity"))->setEnabled(item);
     action(QStringLiteral("mark_as_complete"))->setEnabled(item && !item->isComplete());
     action(QStringLiteral("mark_as_incomplete"))->setEnabled(item && item->isComplete());
 
@@ -521,6 +751,17 @@ void TimeTrackerWidget::editTaskTime()
     }
 
     delete editTimeDialog;
+}
+
+void TimeTrackerWidget::showTaskActivity()
+{
+    Task *task = currentTask();
+    if (!task || !currentTaskView()) {
+        return;
+    }
+
+    HistoryDialog dialog(this, currentTaskView()->storage()->projectModel(), task);
+    dialog.exec();
 }
 
 void TimeTrackerWidget::deleteTask()

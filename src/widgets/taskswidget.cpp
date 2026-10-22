@@ -7,6 +7,7 @@
 #include "taskswidget.h"
 
 #include <QApplication>
+#include <QHeaderView>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
@@ -110,6 +111,7 @@ TasksWidget::TasksWidget(QWidget *parent, QSortFilterProxyModel *filterProxyMode
     , m_popupPriorityMenu(nullptr)
 {
     setModel(filterProxyModel);
+    setObjectName(QStringLiteral("tasksTable"));
 
     connect(this, &QTreeView::expanded, this, &TasksWidget::itemStateChanged);
     connect(this, &QTreeView::collapsed, this, &TasksWidget::itemStateChanged);
@@ -119,7 +121,11 @@ TasksWidget::TasksWidget(QWidget *parent, QSortFilterProxyModel *filterProxyMode
     setAllColumnsShowFocus(true);
     setSortingEnabled(true);
     setAlternatingRowColors(true);
+    setSelectionBehavior(QAbstractItemView::SelectRows);
+    setUniformRowHeights(true);
     setDragDropMode(QAbstractItemView::InternalMove);
+    header()->setStretchLastSection(false);
+    header()->setSectionResizeMode(0, QHeaderView::Stretch);
     setItemDelegateForColumn(6, new ProgressColumnDelegate(this));
 
     // Context menu for task progress percentage

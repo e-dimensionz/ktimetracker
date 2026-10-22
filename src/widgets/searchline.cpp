@@ -20,6 +20,8 @@ SearchLine::SearchLine(QWidget *parent)
     , m_queuedSearches(0)
     , m_queuedSearchText()
 {
+    m_lineEdit->setObjectName(QStringLiteral("taskSearchField"));
+    m_lineEdit->setClearButtonEnabled(true);
     m_lineEdit->setPlaceholderText(i18nc("@info:placeholder", "Search or add task"));
     m_lineEdit->setWhatsThis(i18nc("@info:whatsthis",
                                    "This is a combined field. As long as you do not press Enter, it "
@@ -31,6 +33,7 @@ SearchLine::SearchLine(QWidget *parent)
     connect(m_lineEdit, &QLineEdit::textChanged, this, &SearchLine::queueSearch);
 
     QLayout *innerLayout = new QHBoxLayout;
+    innerLayout->setContentsMargins(0, 0, 0, 0);
     innerLayout->addWidget(m_lineEdit);
 
     setLayout(innerLayout);
